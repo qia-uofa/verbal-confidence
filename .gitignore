@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+envs/
+
+# Results and large data — keep configs, not outputs
+results/
+*.json
+*.npz
+*.h5
+*.hdf5
+*.pkl
+*.pt
+*.bin
+
+# HuggingFace cache (lives on /scratch, not in repo)
+hf_cache/
+
+# SLURM logs
+*.out
+*.err
+slurm-*.out
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Secrets / tokens
+.env
+*.token
