@@ -10,8 +10,9 @@
 #SBATCH --gres=gpu:2
 #SBATCH --mem=0
 #SBATCH --time=01:30:00
-#SBATCH --output=/home/%u/logs/verbal-confidence/test_%j.out
-#SBATCH --error=/home/%u/logs/verbal-confidence/test_%j.err
+# Note: --output/--error are intentionally absent. #SBATCH cannot read shell
+# variables or .env. Use submit_all.sh, which sources .env and passes
+# --output/--error from PERMANENT_ROOT. Direct sbatch logs to slurm-JOBID.out.
 
 set -euo pipefail
 source "$(dirname "$0")/env_setup.sh"

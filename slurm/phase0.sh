@@ -10,13 +10,11 @@
 #SBATCH --gres=gpu:2
 #SBATCH --mem=0
 #SBATCH --time=08:00:00
-# Fallback log location: $HOME (always writable, never wiped).
-# Use submit_all.sh to route logs to PERMANENT_ROOT instead.
-#SBATCH --output=/home/%u/logs/verbal-confidence/phase0_%j.out
-#SBATCH --error=/home/%u/logs/verbal-confidence/phase0_%j.err
 #SBATCH --mail-type=FAIL
-# Uncomment and set your email:
 # #SBATCH --mail-user=you@example.com
+# Note: --output/--error are intentionally absent. #SBATCH cannot read shell
+# variables or .env. Use submit_all.sh, which sources .env and passes
+# --output/--error from PERMANENT_ROOT. Direct sbatch logs to slurm-JOBID.out.
 
 set -euo pipefail
 source "$(dirname "$0")/env_setup.sh"

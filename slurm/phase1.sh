@@ -9,9 +9,10 @@
 #SBATCH --gres=gpu:2
 #SBATCH --mem=0
 #SBATCH --time=08:00:00
-#SBATCH --output=/home/%u/logs/verbal-confidence/phase1_%j.out
-#SBATCH --error=/home/%u/logs/verbal-confidence/phase1_%j.err
 #SBATCH --mail-type=FAIL
+# Note: --output/--error are intentionally absent. #SBATCH cannot read shell
+# variables or .env. Use submit_all.sh, which sources .env and passes
+# --output/--error from PERMANENT_ROOT. Direct sbatch logs to slurm-JOBID.out.
 # #SBATCH --mail-user=you@example.com
 
 set -euo pipefail
