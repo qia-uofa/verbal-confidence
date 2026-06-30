@@ -32,9 +32,7 @@ if [ -z "${EPHEMERAL_ROOT:-}" ] || [ -z "${PERMANENT_ROOT:-}" ]; then
     exit 1
 fi
 
-# ---------- SLURM account / partition ----------
-ACCOUNT_ARG=()
-[[ -n "${SLURM_ACCOUNT:-}" ]] && ACCOUNT_ARG=(--account="${SLURM_ACCOUNT}")
+# ---------- SLURM partition ----------
 PARTITION="${SLURM_PARTITION:-gpu}"
 
 # Permanent log directory (created now so SLURM can write to it immediately)
@@ -62,13 +60,11 @@ echo "    EPHEMERAL_ROOT = ${EPHEMERAL_ROOT}"
 echo "    PERMANENT_ROOT = ${PERMANENT_ROOT}"
 echo "    Logs           = ${LOG_DIR}"
 echo "    Partition      = ${PARTITION}"
-[[ -n "${SLURM_ACCOUNT:-}" ]] && echo "    Account        = ${SLURM_ACCOUNT}"
 echo ""
 
 # ---------- Submit with dependency chain ----------
 JOB0=$(sbatch --parsable \
     --partition="${PARTITION}" \
-    "${ACCOUNT_ARG[@]}" \
     --output="${LOG_DIR}/phase0_%j.out" \
     --error="${LOG_DIR}/phase0_%j.err" \
     "${SCRIPT_DIR}/phase0.sh" ${EXTRA_ARGS})
@@ -76,7 +72,6 @@ echo "  Phase 0 job ID: ${JOB0}"
 
 JOB1=$(sbatch --parsable \
     --partition="${PARTITION}" \
-    "${ACCOUNT_ARG[@]}" \
     --dependency=afterok:${JOB0} \
     --output="${LOG_DIR}/phase1_%j.out" \
     --error="${LOG_DIR}/phase1_%j.err" \
@@ -85,7 +80,6 @@ echo "  Phase 1 job ID: ${JOB1}"
 
 JOB2=$(sbatch --parsable \
     --partition="${PARTITION}" \
-    "${ACCOUNT_ARG[@]}" \
     --dependency=afterok:${JOB1} \
     --output="${LOG_DIR}/experiments_%j.out" \
     --error="${LOG_DIR}/experiments_%j.err" \
