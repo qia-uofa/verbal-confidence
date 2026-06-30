@@ -9,8 +9,8 @@
 #SBATCH --gres=gpu:2
 #SBATCH --mem=0
 #SBATCH --time=08:00:00
-#SBATCH --output=/scratch/%u/logs/verbal-confidence/phase1_%j.out
-#SBATCH --error=/scratch/%u/logs/verbal-confidence/phase1_%j.err
+#SBATCH --output=/home/%u/logs/verbal-confidence/phase1_%j.out
+#SBATCH --error=/home/%u/logs/verbal-confidence/phase1_%j.err
 #SBATCH --mail-type=FAIL
 # #SBATCH --mail-user=you@example.com
 

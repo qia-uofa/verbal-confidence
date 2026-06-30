@@ -8,7 +8,6 @@ Magistral uses its own system/user split.
 
 from __future__ import annotations
 
-from verbal_confidence.config import DotDict
 
 # ---------------------------------------------------------------------------
 # Confidence class list (for categorical prompts)

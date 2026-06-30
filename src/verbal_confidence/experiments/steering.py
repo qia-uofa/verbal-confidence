@@ -16,7 +16,7 @@ import torch
 
 from verbal_confidence.config import DotDict, results_dir, build_meta
 from verbal_confidence.models.inference import ActCollector, forward_logits, make_patch_hook
-from verbal_confidence.utils.io import load_npz, load_results, save_with_meta
+from verbal_confidence.utils.io import load_results, save_with_meta
 from verbal_confidence.utils.logging import get_logger
 from verbal_confidence.utils.tokens import CLASS_TIDS, find_positions
 

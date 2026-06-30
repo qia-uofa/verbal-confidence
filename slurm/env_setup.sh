@@ -45,6 +45,9 @@ fi
 mkdir -p "${HF_HOME}" "${HF_DATASETS_CACHE}" "${TRANSFORMERS_CACHE}" \
          "${RESULTS_ROOT}" "${LOGS_ROOT}"
 
+# Ensure the fallback log dir (used by #SBATCH --output in direct sbatch calls)
+mkdir -p "${HOME}/logs/verbal-confidence"
+
 # ---------- ROCm / MI210 ----------
 # The HLR GPU nodes use AMD MI210 with ROCm.
 # Set HSA_OVERRIDE_GFX_VERSION if your ROCm version doesn't auto-detect gfx90a.

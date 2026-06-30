@@ -6,7 +6,6 @@ Output: list of {question, gold_answer, model_answer} dicts
 
 from __future__ import annotations
 
-from pathlib import Path
 from tqdm import tqdm
 
 from verbal_confidence.config import DotDict, results_dir, build_meta

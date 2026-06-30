@@ -7,7 +7,6 @@ elicitation prompt and record class probabilities, predicted class, etc.
 
 from __future__ import annotations
 
-from pathlib import Path
 from tqdm import tqdm
 import numpy as np
 
@@ -16,7 +15,7 @@ from verbal_confidence.data.prompts import get_phase1_prompt
 from verbal_confidence.models.inference import forward_logits
 from verbal_confidence.utils.io import load_results, save_with_meta
 from verbal_confidence.utils.logging import get_logger
-from verbal_confidence.utils.tokens import CLASS_TIDS, CONFIDENCE_CLASSES
+from verbal_confidence.utils.tokens import CLASS_TIDS
 
 log = get_logger(__name__)
 

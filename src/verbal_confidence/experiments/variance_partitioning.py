@@ -8,18 +8,16 @@ Report R² unique to each predictor set.
 
 from __future__ import annotations
 
-from itertools import combinations
 from tqdm import tqdm
 import numpy as np
 import torch
 
 from sklearn.linear_model import Ridge
-from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
 from verbal_confidence.config import DotDict, results_dir, build_meta
-from verbal_confidence.models.inference import ActCollector, forward_logits
+from verbal_confidence.models.inference import ActCollector
 from verbal_confidence.utils.io import load_results, save_with_meta
 from verbal_confidence.utils.logging import get_logger
 from verbal_confidence.utils.tokens import CLASS_TIDS, find_positions
@@ -58,8 +56,7 @@ def run_variance_partitioning(
     y_log = []      # log P(predicted class) — regression target
 
     # Representations: question-only, answer-only, Q+A at each position
-    from verbal_confidence.data.prompts import phase0_prompt, phase1_categorical
-    from verbal_confidence.utils.tokens import CONFIDENCE_CLASSES
+    from verbal_confidence.data.prompts import phase0_prompt
 
     X_q, X_a, X_qa = [], [], []  # [n, hidden]
     layer_reps: dict[str, list[np.ndarray]] = {p: [] for p in positions}
