@@ -67,6 +67,7 @@ fi
 export PROJECT_ROOT="${HOME}/verbal-confidence"
 export PYTHONPATH="${PROJECT_ROOT}/src:${PYTHONPATH:-}"
 
-echo "[env_setup] SCRATCH=${SCRATCH}"
+echo "[env_setup] EPHEMERAL_ROOT=${EPHEMERAL_ROOT}"
+echo "[env_setup] PERMANENT_ROOT=${PERMANENT_ROOT}"
 echo "[env_setup] HF_HOME=${HF_HOME}"
 echo "[env_setup] PYTHONPATH=${PYTHONPATH}"

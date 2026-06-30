@@ -33,6 +33,14 @@ if [ -z "${EPHEMERAL_ROOT:-}" ] || [ -z "${PERMANENT_ROOT:-}" ]; then
     exit 1
 fi
 
+# ---------- SLURM account / partition ----------
+# Set SLURM_ACCOUNT and SLURM_TEST_PARTITION in .env to match your cluster.
+# Check your account:   sacctmgr show user "$USER"
+# Check partitions:     sinfo -s
+ACCOUNT_ARG=()
+[[ -n "${SLURM_ACCOUNT:-}" ]] && ACCOUNT_ARG=(--account="${SLURM_ACCOUNT}")
+PARTITION="${SLURM_TEST_PARTITION:-test}"
+
 # ---------- Prepare log directory ----------
 LOG_DIR="${PERMANENT_ROOT}/logs/verbal-confidence"
 mkdir -p "${LOG_DIR}"
@@ -42,8 +50,12 @@ echo "Submitting test_run.sh"
 echo "  EPHEMERAL_ROOT = ${EPHEMERAL_ROOT}"
 echo "  PERMANENT_ROOT = ${PERMANENT_ROOT}"
 echo "  Logs           = ${LOG_DIR}"
+echo "  Partition      = ${PARTITION}"
+[[ -n "${SLURM_ACCOUNT:-}" ]] && echo "  Account        = ${SLURM_ACCOUNT}"
 
 JOB_ID=$(sbatch --parsable \
+    --partition="${PARTITION}" \
+    "${ACCOUNT_ARG[@]}" \
     --output="${LOG_DIR}/test_%j.out" \
     --error="${LOG_DIR}/test_%j.err" \
     "${SCRIPT_DIR}/test_run.sh" \
