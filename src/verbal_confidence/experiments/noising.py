@@ -12,9 +12,9 @@ from tqdm import tqdm
 import numpy as np
 import torch
 
-from verbal_confidence.config import DotDict, results_dir
+from verbal_confidence.config import DotDict, results_dir, build_meta
 from verbal_confidence.models.inference import ActCollector, forward_logits, make_noise_hook
-from verbal_confidence.utils.io import load_json, save_json
+from verbal_confidence.utils.io import load_results, save_with_meta
 from verbal_confidence.utils.logging import get_logger
 from verbal_confidence.utils.tokens import CLASS_TIDS, find_positions
 
@@ -53,7 +53,7 @@ def run_noising(
     phase1_results: list[dict],
 ) -> list[dict]:
     out_path = results_dir(cfg) / cfg.noising.output_file
-    cached = load_json(out_path)
+    cached, _ = load_results(out_path)
     if cached is not None:
         log.info("Noising: loaded cached results")
         return cached
@@ -102,6 +102,7 @@ def run_noising(
                 ),
             })
 
-    save_json(results, out_path)
+    meta = build_meta(cfg, "noising",  layers=cfg.noising.layers,  positions=cfg.noising.positions, n_mean_samples=cfg.noising.n_mean_samples)
+    save_with_meta(results, out_path, meta)
     log.info("Noising: saved %d records to %s", len(results), out_path)
     return results

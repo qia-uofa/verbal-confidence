@@ -17,9 +17,9 @@ from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
-from verbal_confidence.config import DotDict, results_dir
+from verbal_confidence.config import DotDict, results_dir, build_meta
 from verbal_confidence.models.inference import ActCollector
-from verbal_confidence.utils.io import load_json, save_json
+from verbal_confidence.utils.io import load_results, save_with_meta
 from verbal_confidence.utils.logging import get_logger
 from verbal_confidence.utils.tokens import find_positions
 
@@ -60,7 +60,7 @@ def run_probing(
     phase1_results: list[dict],
 ) -> list[dict]:
     out_path = results_dir(cfg) / cfg.probing.output_file
-    cached = load_json(out_path)
+    cached, _ = load_results(out_path)
     if cached is not None:
         log.info("Probing: loaded cached results")
         return cached
@@ -99,6 +99,7 @@ def run_probing(
         })
         log.debug("Layer %d / %s: %s=%.4f", layer, pos_key, metric_name, metric)
 
-    save_json(results, out_path)
+    meta = build_meta(cfg, "probing",   layers=p_cfg.layers,        positions=p_cfg.positions,       cv_folds=p_cfg.cv_folds, task=p_cfg.task)
+    save_with_meta(results, out_path, meta)
     log.info("Probing: saved %d records to %s", len(results), out_path)
     return results

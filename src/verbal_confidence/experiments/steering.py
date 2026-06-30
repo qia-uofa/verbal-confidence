@@ -14,9 +14,9 @@ from tqdm import tqdm
 import numpy as np
 import torch
 
-from verbal_confidence.config import DotDict, results_dir
+from verbal_confidence.config import DotDict, results_dir, build_meta
 from verbal_confidence.models.inference import ActCollector, forward_logits, make_patch_hook
-from verbal_confidence.utils.io import load_json, load_npz, save_json
+from verbal_confidence.utils.io import load_npz, load_results, save_with_meta
 from verbal_confidence.utils.logging import get_logger
 from verbal_confidence.utils.tokens import CLASS_TIDS, find_positions
 
@@ -77,7 +77,7 @@ def run_steering(
     phase1_results: list[dict],
 ) -> list[dict]:
     out_path = results_dir(cfg) / cfg.steering.output_file
-    cached = load_json(out_path)
+    cached, _ = load_results(out_path)
     if cached is not None:
         log.info("Steering: loaded cached results from %s", out_path)
         return cached
@@ -127,6 +127,7 @@ def run_steering(
                 "position":       "panl",
             })
 
-    save_json(results, out_path)
+    meta = build_meta(cfg, "steering", layers=cfg.steering.layers, positions=cfg.steering.positions, alphas=cfg.steering.alphas)
+    save_with_meta(results, out_path, meta)
     log.info("Steering: saved %d records to %s", len(results), out_path)
     return results

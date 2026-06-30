@@ -1,26 +1,45 @@
 #!/usr/bin/env bash
 # =============================================================================
 # env_setup.sh — Sourced by all SLURM job scripts.
-# Sets up the Python environment and HuggingFace cache paths on Goethe-HLR.
+# Sets up the Python environment and storage paths on Goethe-HLR.
+#
+# Storage layout:
+#   /home/$USER           30 GB NFS  — source code only
+#   /scratch/$GROUP/$USER  5 TB Lustre — ephemeral: models, cache (EPHEMERAL_ROOT)
+#   /home/$USER or /work   permanent  — results, logs (PERMANENT_ROOT)
+#   /local/$SLURM_JOB_ID  1.4 TB NVMe — temp, deleted after job
 # =============================================================================
 
-# ---------- Storage layout ----------
-# /home/$USER          : 30 GB NFS (code lives here)
-# /scratch/$GROUP/$USER: 5 TB Lustre (models, datasets, results, logs)
-# /local/$SLURM_JOB_ID : 1.4 TB NVMe (temporary, deleted after job)
+# ---------- Load .env (only sets variables not already in environment) ----------
+DOTENV="${PROJECT_ROOT:-${HOME}/verbal-confidence}/.env"
+if [ -f "${DOTENV}" ]; then
+    echo "[env_setup] Loading ${DOTENV}"
+    set -o allexport
+    # shellcheck disable=SC1090
+    source "${DOTENV}"
+    set +o allexport
+fi
 
-export GROUP="${GROUP:-$(id -gn)}"
-export SCRATCH="/scratch/${GROUP}/${USER}"
+# ---------- Validate required variables ----------
+if [ -z "${EPHEMERAL_ROOT:-}" ] || [ -z "${PERMANENT_ROOT:-}" ]; then
+    echo "ERROR: EPHEMERAL_ROOT and PERMANENT_ROOT must be set in .env or the shell."
+    echo "       Copy .env.example to .env and fill in your paths."
+    exit 1
+fi
 
-# HuggingFace cache → fast scratch
-export HF_HOME="${SCRATCH}/hf_cache"
+# ---------- Derive cache/results paths from the two roots ----------
+export HF_HOME="${EPHEMERAL_ROOT}/hf_cache"
 export HF_DATASETS_CACHE="${HF_HOME}/datasets"
 export TRANSFORMERS_CACHE="${HF_HOME}/hub"
 export TOKENIZERS_PARALLELISM="false"
 
-# Results
-export RESULTS_ROOT="${SCRATCH}/results/verbal-confidence"
-export LOGS_ROOT="${SCRATCH}/logs/verbal-confidence"
+export RESULTS_ROOT="${PERMANENT_ROOT}/results/verbal-confidence"
+export LOGS_ROOT="${PERMANENT_ROOT}/logs/verbal-confidence"
+
+# Propagate HF token if set
+if [ -n "${HF_TOKEN:-}" ]; then
+    export HUGGING_FACE_HUB_TOKEN="${HF_TOKEN}"
+fi
 
 # Make required directories
 mkdir -p "${HF_HOME}" "${HF_DATASETS_CACHE}" "${TRANSFORMERS_CACHE}" \

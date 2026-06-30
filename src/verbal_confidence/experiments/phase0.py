@@ -9,11 +9,11 @@ from __future__ import annotations
 from pathlib import Path
 from tqdm import tqdm
 
-from verbal_confidence.config import DotDict, results_dir
+from verbal_confidence.config import DotDict, results_dir, build_meta
 from verbal_confidence.data.loader import load_dataset_split, sample_questions
 from verbal_confidence.data.prompts import phase0_prompt
 from verbal_confidence.models.inference import generate_answer
-from verbal_confidence.utils.io import load_json, save_json
+from verbal_confidence.utils.io import load_results, save_with_meta
 from verbal_confidence.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -21,7 +21,7 @@ log = get_logger(__name__)
 
 def run_phase0(cfg: DotDict, model, tokenizer) -> list[dict]:
     out_path = results_dir(cfg) / cfg.phase0.output_file
-    cached = load_json(out_path)
+    cached, _ = load_results(out_path)
     if cached is not None:
         log.info("Phase 0: loaded %d cached answers from %s", len(cached), out_path)
         return cached
@@ -45,6 +45,9 @@ def run_phase0(cfg: DotDict, model, tokenizer) -> list[dict]:
             "source":       rec["source"],
         })
 
-    save_json(results, out_path)
+    meta = build_meta(cfg, "phase0",
+                      max_new_tokens=cfg.phase0.max_new_tokens,
+                      temperature=cfg.phase0.temperature)
+    save_with_meta(results, out_path, meta)
     log.info("Phase 0: saved to %s", out_path)
     return results

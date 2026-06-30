@@ -9,10 +9,10 @@ Repeats phase0+phase1 across:
 
 from __future__ import annotations
 
-from verbal_confidence.config import DotDict, results_dir
+from verbal_confidence.config import DotDict, results_dir, build_meta
 from verbal_confidence.data.loader import load_dataset_split, sample_questions
 from verbal_confidence.models.loader import switch_model
-from verbal_confidence.utils.io import load_json, save_json
+from verbal_confidence.utils.io import load_results, save_with_meta
 from verbal_confidence.utils.logging import get_logger
 from .phase0 import run_phase0
 from .phase1 import run_phase1
@@ -26,7 +26,7 @@ def run_generalization(
     tokenizer,
 ) -> dict:
     out_path = results_dir(cfg) / cfg.generalization.output_file
-    cached = load_json(out_path)
+    cached, _ = load_results(out_path)
     if cached is not None:
         log.info("Generalization: loaded cached results")
         return cached
@@ -72,6 +72,7 @@ def run_generalization(
             "n": len(p1),
         }
 
-    save_json(results, out_path)
+    meta = build_meta(cfg, "generalization",        prompt_variants=g_cfg.prompt_variants, extra_models=g_cfg.extra_models, extra_datasets=g_cfg.extra_datasets)
+    save_with_meta(results, out_path, meta)
     log.info("Generalization: saved to %s", out_path)
     return results

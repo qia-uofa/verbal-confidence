@@ -73,9 +73,31 @@ The config and SLURM scripts automatically route HF_HOME, HF_DATASETS_CACHE, and
 # On HLR login node
 cd $HOME
 git clone https://github.com/YOUR_USER/verbal-confidence.git
+cd verbal-confidence
 ```
 
-### 2. Create a Python environment
+### 2. Configure paths via .env
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set the two required variables:
+
+```bash
+# Large, re-downloadable data (models, HF cache) — use fast scratch
+EPHEMERAL_ROOT=/scratch/YOURGROUP/YOURUSER
+
+# Irreplaceable outputs (results, logs) — back this up
+PERMANENT_ROOT=/home/YOURUSER
+
+# HuggingFace token (needed for Gemma 3 27B)
+HF_TOKEN=hf_YOUR_TOKEN_HERE
+```
+
+That's the only configuration required. `config/default.yaml` derives all paths from these two variables automatically. You never need to edit the YAML for path configuration.
+
+### 3. Create a Python environment
 
 ```bash
 module load Python/3.11   # or your available module
@@ -84,26 +106,9 @@ source $HOME/envs/verbal-confidence/bin/activate
 pip install -e .
 ```
 
-### 3. Configure paths
+### 4. Accept the Gemma licence (once)
 
-Edit `config/default.yaml` — at minimum set `paths.scratch_root`:
-
-```yaml
-paths:
-  scratch_root: /scratch/YOUR_GROUP/YOUR_USER
-```
-
-Or pass `GROUP` and `USER` as environment variables (already set in SLURM jobs).
-
-### 4. HuggingFace token (for gated models)
-
-Gemma 3 27B requires licence acceptance at huggingface.co and a read token:
-
-```bash
-huggingface-cli login   # paste your HF_TOKEN
-```
-
-Or set `HF_TOKEN` in your environment before submitting jobs.
+Gemma 3 27B is gated. Accept the licence at https://huggingface.co/google/gemma-3-27b-it then set `HF_TOKEN` in `.env` as above. Qwen and Magistral are open and need no token.
 
 ---
 

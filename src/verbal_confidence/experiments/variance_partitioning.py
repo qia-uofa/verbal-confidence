@@ -18,9 +18,9 @@ from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
-from verbal_confidence.config import DotDict, results_dir
+from verbal_confidence.config import DotDict, results_dir, build_meta
 from verbal_confidence.models.inference import ActCollector, forward_logits
-from verbal_confidence.utils.io import load_json, save_json
+from verbal_confidence.utils.io import load_results, save_with_meta
 from verbal_confidence.utils.logging import get_logger
 from verbal_confidence.utils.tokens import CLASS_TIDS, find_positions
 
@@ -44,7 +44,7 @@ def run_variance_partitioning(
     vp_path = results_dir(cfg) / cfg.variance_partitioning.output_file
     lp_path = results_dir(cfg) / cfg.variance_partitioning.logprobs_file
 
-    cached_vp = load_json(vp_path)
+    cached_vp, _ = load_results(vp_path)
     if cached_vp is not None:
         log.info("VP: loaded cached results")
         return cached_vp
@@ -130,6 +130,7 @@ def run_variance_partitioning(
         r2_others = _fit_r2(X_others, y)
         vp_results[f"r2_unique_{name}"] = max(0.0, r2_all - r2_others)
 
-    save_json(vp_results, vp_path)
+    meta = build_meta(cfg, "variance_partitioning", positions=vp_cfg.positions, baselines=vp_cfg.baselines)
+    save_with_meta(vp_results, vp_path, meta)
     log.info("VP: saved to %s", vp_path)
     return vp_results

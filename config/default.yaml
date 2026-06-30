@@ -1,30 +1,50 @@
 # =============================================================================
 # Verbal Confidence — Default Configuration
-# Goethe-HLR Frankfurt Cluster
+# =============================================================================
+#
+# Two paths are REQUIRED in your .env file (copy .env.example):
+#
+#   EPHEMERAL_ROOT   Fast scratch for large, re-downloadable files.
+#                    HF model weights, dataset cache, pip/conda installs.
+#                    OK to wipe — everything can be re-fetched.
+#                    HLR example: /scratch/mygroup/myuser
+#
+#   PERMANENT_ROOT   Durable storage for irreplaceable outputs.
+#                    Experiment results, logs — back this up.
+#                    HLR example: /home/myuser   or   /work/mygroup/myuser
+#
+# All ${VAR} placeholders resolve from:
+#   1. config/default.yaml values (dot-notation: ${paths.hf_home})
+#   2. Environment variables / .env  (e.g. ${EPHEMERAL_ROOT})
 # =============================================================================
 
+
 # ---------------------------------------------------------------------------
-# Storage Paths (HLR layout)
-#   /home/<user>          — 30 GB, slow NFS  → source code only
-#   /scratch/<group>/<user> — 5 TB, fast Lustre → all large data
-#   /local/$SLURM_JOB_ID  — 1.4 TB NVMe, deleted after job → temp scratch
+# Storage Paths
 # ---------------------------------------------------------------------------
 paths:
-  # Root for all large outputs; override with $SCRATCH env var in SLURM scripts
-  scratch_root: /scratch/${GROUP}/${USER}
+  # ── Ephemeral (re-downloadable) ─────────────────────────────────────────
+  # Set EPHEMERAL_ROOT in .env. Fast scratch preferred (Lustre / NVMe).
+  ephemeral_root: ${EPHEMERAL_ROOT}
 
-  # HuggingFace cache — keeps model weights and datasets on fast scratch
-  hf_home:      ${paths.scratch_root}/hf_cache
-  hf_datasets:  ${paths.scratch_root}/hf_cache/datasets
+  # HuggingFace model weights and dataset cache live here.
+  hf_home:      ${paths.ephemeral_root}/hf_cache
+  hf_datasets:  ${paths.ephemeral_root}/hf_cache/datasets
+  model_cache:  ${paths.ephemeral_root}/hf_cache/hub
 
-  # Where model checkpoints are stored (inside hf_home by default)
-  model_cache:  ${paths.scratch_root}/hf_cache/hub
+  # ── Permanent (important, back up) ──────────────────────────────────────
+  # Set PERMANENT_ROOT in .env.
+  permanent_root: ${PERMANENT_ROOT}
 
-  # Experiment outputs
-  results_root: ${paths.scratch_root}/results/verbal-confidence
-  logs_root:    ${paths.scratch_root}/logs/verbal-confidence
+  # Experiment results: JSON outputs for every run.
+  results_root: ${paths.permanent_root}/results/verbal-confidence
 
-  # Per-run subdirectory created automatically: results_root/<run_name>/
+  # Structured logs per run.
+  logs_root: ${paths.permanent_root}/logs/verbal-confidence
+
+  # ── Run name ─────────────────────────────────────────────────────────────
+  # Subdirectory created inside results_root for each run.
+  # Overridden by --run-name CLI arg or RUN_NAME env var in SLURM scripts.
   run_name: default
 
 
@@ -36,11 +56,8 @@ models:
   primary:
     name: google/gemma-3-27b-it
     dtype: bfloat16
-    # For ROCm/MI210 on HLR; set to "eager" to avoid flash-attn issues
-    attn_implementation: eager
-    # Max sequence length (tokens). Reduce if OOM.
+    attn_implementation: eager   # safe for ROCm/MI210 (avoids flash-attn)
     max_length: 512
-    # Load in 8-bit for memory savings (requires bitsandbytes)
     load_in_8bit: false
 
   qwen:
@@ -57,7 +74,7 @@ models:
     max_length: 512
     load_in_8bit: false
 
-# Active model key (one of: primary, qwen, magistral)
+# Active model key (primary | qwen | magistral)
 active_model: primary
 
 
@@ -79,20 +96,17 @@ datasets:
     config: all
     split: test
 
-# Active dataset key
 active_dataset: trivia_qa
 
-# Number of questions sampled per dataset
+# Number of questions sampled per run
 n_questions: 200
 
-# Random seed for sampling
+# Random seed for reproducible sampling
 seed: 42
 
 
 # ---------------------------------------------------------------------------
-# Confidence Classes
-# The 10 verbal confidence expressions used in the paper.
-# Class index 0 = least confident, 9 = most confident.
+# Confidence Classes (paper Table 1)
 # ---------------------------------------------------------------------------
 confidence_classes:
   - "No chance"
@@ -112,9 +126,8 @@ confidence_classes:
 # ---------------------------------------------------------------------------
 phase0:
   output_file: phase0.json
-  # Generation parameters
   max_new_tokens: 64
-  temperature: 0.0      # greedy
+  temperature: 0.0
   do_sample: false
 
 # ---------------------------------------------------------------------------
@@ -122,7 +135,7 @@ phase0:
 # ---------------------------------------------------------------------------
 phase1:
   output_file: phase1.json
-  # Prompt variant: categorical | numerical | minimal
+  # categorical | numerical | minimal
   prompt_variant: categorical
 
 # ---------------------------------------------------------------------------
@@ -130,11 +143,8 @@ phase1:
 # ---------------------------------------------------------------------------
 steering:
   output_file: steering.json
-  # Layers to collect activations from and steer in
   layers: [10, 20, 30]
-  # Token positions to steer: panl | panl_plus1 | cc | fcc | ac
   positions: [panl, cc]
-  # Multipliers applied to the steering vector
   alphas: [-2.0, -1.0, -0.5, 0.5, 1.0, 2.0]
 
 # ---------------------------------------------------------------------------
@@ -152,7 +162,6 @@ noising:
   output_file: noising.json
   layers: [10, 20, 30]
   positions: [panl, cc, ac]
-  # Number of samples used to compute the mean activation
   n_mean_samples: 100
 
 # ---------------------------------------------------------------------------
@@ -162,7 +171,6 @@ swap:
   output_file: swap.json
   layers: [10, 20, 30]
   positions: [panl, cc]
-  # Swap across which question pairs: random | same_answer | diff_answer
   pair_strategy: random
   n_pairs: 100
 
@@ -171,12 +179,10 @@ swap:
 # ---------------------------------------------------------------------------
 probing:
   output_file: probing.json
-  layers: all          # "all" or list of ints
+  layers: all            # "all" or list of ints
   positions: [panl, cc, ac]
-  # CV folds
   cv_folds: 5
-  # Task: regression (R²) or classification (AUROC)
-  task: regression
+  task: regression       # regression (R²) | classification (AUROC)
 
 # ---------------------------------------------------------------------------
 # Experiment 6 — Variance Partitioning
@@ -185,7 +191,6 @@ variance_partitioning:
   output_file: vp.json
   logprobs_file: logprobs.json
   positions: [panl, cc, ac]
-  # Baselines: question | answer | question_answer | layer_repr | all
   baselines: [question, answer, question_answer]
 
 # ---------------------------------------------------------------------------
@@ -193,10 +198,7 @@ variance_partitioning:
 # ---------------------------------------------------------------------------
 attention_blocking:
   output_file: attention.json
-  # Which attention edges to block:
-  #   cc_to_qa   : CC position cannot attend to Q+A tokens
-  #   cc_to_panl : CC position cannot attend to PANL token
-  #   panl_to_a  : PANL position cannot attend to answer tokens
+  # cc_to_qa | cc_to_panl | panl_to_a
   block_patterns: [cc_to_qa, cc_to_panl, panl_to_a]
   layers: all
 
@@ -205,27 +207,19 @@ attention_blocking:
 # ---------------------------------------------------------------------------
 generalization:
   output_file: generalization.json
-  # Prompt variants to test: categorical | numerical | minimal
   prompt_variants: [categorical, numerical, minimal]
-  # Extra models to test beyond active_model
   extra_models: [qwen, magistral]
   extra_datasets: [bigmath, mmlu]
 
 
 # ---------------------------------------------------------------------------
-# SLURM / Compute (informational — referenced in slurm/ scripts)
+# SLURM / Compute (informational — values referenced in slurm/ scripts)
 # ---------------------------------------------------------------------------
 slurm:
-  # Partition for long jobs (>2h)
-  partition: gpu
-  # Partition for short test jobs (<2h)
-  test_partition: test
-  # Number of GPUs per job
+  partition: gpu          # for jobs > 2 h
+  test_partition: test    # for jobs < 2 h
   n_gpus: 2
-  # Wall-clock time limit
   time: "24:00:00"
-  # Use all available memory on node
-  mem: 0
-  # Email notifications (set to your address)
-  mail_user: ""
+  mem: 0                  # 0 = use all available RAM on node
   mail_type: FAIL
+  # mail_user: set in .env as SLURM_MAIL or override per job

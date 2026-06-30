@@ -11,10 +11,10 @@ from pathlib import Path
 from tqdm import tqdm
 import numpy as np
 
-from verbal_confidence.config import DotDict, results_dir
+from verbal_confidence.config import DotDict, results_dir, build_meta
 from verbal_confidence.data.prompts import get_phase1_prompt
 from verbal_confidence.models.inference import forward_logits
-from verbal_confidence.utils.io import load_json, save_json
+from verbal_confidence.utils.io import load_results, save_with_meta
 from verbal_confidence.utils.logging import get_logger
 from verbal_confidence.utils.tokens import CLASS_TIDS, CONFIDENCE_CLASSES
 
@@ -36,7 +36,7 @@ def run_phase1(
 ) -> list[dict]:
     variant = variant or cfg.phase1.prompt_variant
     out_path = results_dir(cfg) / cfg.phase1.output_file
-    cached = load_json(out_path)
+    cached, _ = load_results(out_path)
     if cached is not None:
         log.info("Phase 1: loaded %d cached records from %s", len(cached), out_path)
         return cached
@@ -69,6 +69,7 @@ def run_phase1(
         np.mean(confidences), np.mean(accuracies),
     )
 
-    save_json(results, out_path)
+    meta = build_meta(cfg, "phase1", prompt_variant=variant)
+    save_with_meta(results, out_path, meta)
     log.info("Phase 1: saved to %s", out_path)
     return results
