@@ -54,13 +54,18 @@ mkdir -p "${HOME}/logs/verbal-confidence"
 # export HSA_OVERRIDE_GFX_VERSION=9.0.a
 
 # ---------- Python ----------
-# Activate your conda/venv environment.
-# Adjust the path to your actual environment:
-ENV_PATH="${HOME}/envs/verbal-confidence"
+# Activate the environment specified by ENV_PATH in .env.
+if [ -z "${ENV_PATH:-}" ]; then
+    echo "ERROR: ENV_PATH is not set. Add it to .env (path to your conda/venv environment)."
+    exit 1
+fi
 if [ -f "${ENV_PATH}/bin/activate" ]; then
     source "${ENV_PATH}/bin/activate"
 elif command -v conda &>/dev/null; then
-    conda activate verbal-confidence 2>/dev/null || true
+    conda activate "${ENV_PATH}" 2>/dev/null || true
+else
+    echo "ERROR: Cannot activate environment at ${ENV_PATH}"
+    exit 1
 fi
 
 # ---------- Project root ----------
