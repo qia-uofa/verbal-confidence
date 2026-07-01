@@ -58,13 +58,15 @@ models:
     dtype: bfloat16
     attn_implementation: eager   # safe for ROCm/MI210 (avoids flash-attn)
     max_length: 512
-    load_in_8bit: false
+    load_in_4bit: false          # set true to use ~14 GB instead of ~55 GB
+    load_in_8bit: false          # set true to use ~28 GB instead of ~55 GB
 
   qwen:
     name: Qwen/Qwen2.5-7B-Instruct
     dtype: bfloat16
     attn_implementation: eager
     max_length: 512
+    load_in_4bit: false
     load_in_8bit: false
 
   magistral:
@@ -72,6 +74,7 @@ models:
     dtype: bfloat16
     attn_implementation: eager
     max_length: 512
+    load_in_4bit: false
     load_in_8bit: false
 
 # Active model key (primary | qwen | magistral)

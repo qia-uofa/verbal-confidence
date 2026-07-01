@@ -8,7 +8,7 @@ Supports bfloat16, optional 8-bit, and ROCm-safe attn_implementation.
 from __future__ import annotations
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 from verbal_confidence.config import DotDict
 from verbal_confidence.utils.logging import get_logger
@@ -45,14 +45,22 @@ def load_model_and_tokenizer(
     dtype = dtype_map.get(getattr(mcfg, "dtype", "bfloat16"), torch.bfloat16)
 
     load_kwargs: dict = {
-        "torch_dtype":          dtype,
+        "dtype":                dtype,
         "device_map":           device_map,
         "attn_implementation":  getattr(mcfg, "attn_implementation", "eager"),
     }
 
-    if getattr(mcfg, "load_in_8bit", False):
-        load_kwargs["load_in_8bit"] = True
-        load_kwargs.pop("torch_dtype", None)  # incompatible with 8-bit
+    if getattr(mcfg, "load_in_4bit", False):
+        load_kwargs["quantization_config"] = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=dtype,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+        )
+        load_kwargs.pop("dtype", None)  # set via quantization_config
+    elif getattr(mcfg, "load_in_8bit", False):
+        load_kwargs["quantization_config"] = BitsAndBytesConfig(load_in_8bit=True)
+        load_kwargs.pop("dtype", None)
 
     model = AutoModelForCausalLM.from_pretrained(name, **load_kwargs)
     model.eval()
