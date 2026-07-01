@@ -17,7 +17,7 @@
 # --output/--error from PERMANENT_ROOT. Direct sbatch logs to slurm-JOBID.out.
 
 set -euo pipefail
-source "$(dirname "$0")/env_setup.sh"
+source "${PROJECT_ROOT}/slurm/env_setup.sh"
 
 # Optional: copy HF cache to local NVMe for faster I/O during the job
 LOCAL_CACHE="/local/${SLURM_JOB_ID}/hf_cache"

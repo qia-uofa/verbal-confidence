@@ -16,7 +16,7 @@
 # #SBATCH --mail-user=you@example.com
 
 set -euo pipefail
-source "$(dirname "$0")/env_setup.sh"
+source "${PROJECT_ROOT}/slurm/env_setup.sh"
 
 echo "[phase1] Starting at $(date)"
 

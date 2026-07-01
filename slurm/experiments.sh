@@ -17,7 +17,7 @@
 # #SBATCH --mail-user=you@example.com
 
 set -euo pipefail
-source "$(dirname "$0")/env_setup.sh"
+source "${PROJECT_ROOT}/slurm/env_setup.sh"
 
 # Optional: stage HF cache to local NVMe
 LOCAL_CACHE="/local/${SLURM_JOB_ID}/hf_cache"

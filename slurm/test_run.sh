@@ -15,7 +15,7 @@
 # --output/--error from PERMANENT_ROOT. Direct sbatch logs to slurm-JOBID.out.
 
 set -euo pipefail
-source "$(dirname "$0")/env_setup.sh"
+source "${PROJECT_ROOT}/slurm/env_setup.sh"
 
 echo "[test] Starting smoke test at $(date)"
 

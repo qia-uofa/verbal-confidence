@@ -12,7 +12,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+export PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # ---------- Load .env ----------
 DOTENV="${PROJECT_ROOT}/.env"
