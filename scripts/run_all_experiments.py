@@ -16,10 +16,26 @@ Usage:
         [--skip steering patching]
 """
 
-import argparse
+import os
 import sys
 from pathlib import Path
 
+# ── Set HF_HOME before huggingface_hub is imported ───────────────────────────
+# huggingface_hub reads HF_HOME at import time and caches it as a constant.
+# We must set it in os.environ before any `import transformers` happens.
+_dotenv = Path(__file__).parents[1] / ".env"
+if _dotenv.exists():
+    for _line in _dotenv.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _, _v = _line.partition("=")
+            if _k.strip() not in os.environ:
+                os.environ[_k.strip()] = _v.strip()
+if "EPHEMERAL_ROOT" in os.environ:
+    os.environ.setdefault("HF_HOME", os.environ["EPHEMERAL_ROOT"] + "/hf_cache")
+# ─────────────────────────────────────────────────────────────────────────────
+
+import argparse
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from verbal_confidence.config import load_config

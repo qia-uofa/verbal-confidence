@@ -6,7 +6,8 @@ Usage:
     python scripts/run_phase0.py [--config config/custom.yaml] [--model primary]
 """
 
-import argparse
+import os\nimport sys\nfrom pathlib import Path\n\n# ── Set HF_HOME before huggingface_hub is imported ──────────────────────────────────────────\nif (_dotenv := Path(__file__).parents[1] / ".env").exists():\n    for _line in _dotenv.read_text().splitlines():\n        _line = _line.strip()\n        if _line and not _line.startswith("#") and "=" in _line:\n            _k, _, _v = _line.partition("=")\n            if _k.strip() not in os.environ:\n                os.environ[_k.strip()] = _v.strip()\nif "EPHEMERAL_ROOT" in os.environ:\n    os.environ.setdefault("HF_HOME", os.environ["EPHEMERAL_ROOT"] + "/hf_cache")\n# ───────────────────────────────────────────────────────────────────────────\n\nimport argparse
+
 import sys
 from pathlib import Path
 
