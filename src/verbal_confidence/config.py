@@ -184,7 +184,7 @@ def _validate_env() -> None:
 # Public API
 # ---------------------------------------------------------------------------
 
-_DEFAULT_CONFIG = Path(__file__).parents[3] / "config" / "default.yaml"
+_DEFAULT_CONFIG = Path(__file__).parents[2] / "config" / "default.yaml"
 
 
 def load_config(override_path: str | Path | None = None) -> DotDict:
