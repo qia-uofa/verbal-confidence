@@ -57,6 +57,32 @@ def main():
         cfg.paths.run_name = args.run_name
 
     skip = set(args.skip)
+
+    # ── Print environment and config on startup ──────────────────────────────
+    import os, yaml as _yaml
+    log.info("=" * 60)
+    log.info("ENVIRONMENT")
+    for key in ("HF_HOME", "HF_DATASETS_CACHE", "TRANSFORMERS_CACHE",
+                "HUGGING_FACE_HUB_TOKEN", "EPHEMERAL_ROOT", "PERMANENT_ROOT",
+                "PYTHONPATH", "CUDA_VISIBLE_DEVICES", "ROCR_VISIBLE_DEVICES"):
+        val = os.environ.get(key, "<not set>")
+        if "TOKEN" in key and val != "<not set>":
+            val = val[:8] + "..."   # redact token
+        log.info("  %-30s %s", key, val)
+    log.info("CONFIG")
+    log.info("  active_model   = %s (%s)", cfg.active_model,
+             getattr(getattr(cfg.models, cfg.active_model, {}), "name", "?"))
+    log.info("  active_dataset = %s", getattr(cfg, "active_dataset", "?"))
+    log.info("  n_questions    = %s", getattr(cfg, "n_questions", "?"))
+    log.info("  seed           = %s", getattr(cfg, "seed", "?"))
+    log.info("  ephemeral_root = %s", cfg.paths.ephemeral_root)
+    log.info("  permanent_root = %s", cfg.paths.permanent_root)
+    log.info("  hf_home        = %s", cfg.paths.hf_home)
+    log.info("  results_root   = %s", cfg.paths.results_root)
+    log.info("  run_name       = %s", cfg.paths.run_name)
+    log.info("=" * 60)
+    # ─────────────────────────────────────────────────────────────────────────
+
     log.info("Starting full pipeline. Skip: %s", skip or "none")
 
     model, tokenizer = load_model_and_tokenizer(cfg)
