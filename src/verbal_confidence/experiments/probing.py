@@ -30,12 +30,18 @@ log = get_logger(__name__)
 def _collect_representations(
     model, tokenizer, phase1_results: list[dict],
     layers: list[int], positions: list[str]
-) -> dict[tuple[int, str], np.ndarray]:
-    """Collect activation matrix X[n_items, hidden] per (layer, position)."""
-    n = len(phase1_results)
-    buckets: dict[tuple[int, str], list[np.ndarray]] = {}
+) -> tuple[dict[tuple[int, str], np.ndarray], dict[tuple[int, str], list[int]]]:
+    """
+    Collect activation matrix X[n_valid, hidden] per (layer, position).
 
-    for rec in tqdm(phase1_results, desc="Collecting reps for probing"):
+    Returns (reps, valid_indices) where valid_indices[(layer, pos)] is the
+    list of phase1_results indices that had a valid position token — used
+    to align y_cls / y_correct with X during probe fitting.
+    """
+    buckets:      dict[tuple[int, str], list[np.ndarray]] = {}
+    valid_indices: dict[tuple[int, str], list[int]]        = {}
+
+    for i, rec in enumerate(tqdm(phase1_results, desc="Collecting reps for probing")):
         prompt = rec["prompt"]
         inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
         pos_map = find_positions(inputs["input_ids"][0], tokenizer)
@@ -54,8 +60,10 @@ def _collect_representations(
             if np.isnan(arr).any() or np.isinf(arr).any():
                 arr = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
             buckets.setdefault(key, []).append(arr)
+            valid_indices.setdefault(key, []).append(i)
 
-    return {k: np.stack(v) for k, v in buckets.items()}
+    reps = {k: np.stack(v) for k, v in buckets.items()}
+    return reps, valid_indices
 
 
 def run_probing(
@@ -80,11 +88,25 @@ def run_probing(
     y_cls     = np.array([r["pred_class"] for r in phase1_results])
     y_correct = np.array([int(r["is_correct"]) for r in phase1_results])
 
-    reps = _collect_representations(model, tokenizer, phase1_results, layers, positions)
+    reps, valid_indices = _collect_representations(
+        model, tokenizer, phase1_results, layers, positions
+    )
 
     results = []
     for (layer, pos_key), X in tqdm(reps.items(), desc="Fitting probes"):
-        # Replace any remaining NaN/Inf (safety net for imputer)
+        idx = valid_indices[(layer, pos_key)]
+        n_valid = len(idx)
+
+        # Need at least cv_folds samples to run cross-validation
+        if n_valid < cv_folds:
+            log.debug("Layer %d / %s: only %d valid samples, skipping", layer, pos_key, n_valid)
+            continue
+
+        # Align labels to the samples that had a valid position token
+        y_cls_sub     = y_cls[idx].astype(float)
+        y_correct_sub = y_correct[idx]
+
+        # Safety net: replace any remaining NaN/Inf
         X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
 
         if task == "regression":
@@ -93,8 +115,7 @@ def run_probing(
                 ("scaler", StandardScaler()),
                 ("clf", Ridge()),
             ])
-            scores = cross_val_score(pipe, X, y_cls.astype(float),
-                                     cv=cv_folds, scoring="r2")
+            scores = cross_val_score(pipe, X, y_cls_sub, cv=cv_folds, scoring="r2")
             metric, metric_name = float(np.mean(scores)), "r2"
         else:
             pipe = Pipeline([
@@ -102,8 +123,7 @@ def run_probing(
                 ("scaler", StandardScaler()),
                 ("clf", LogisticRegression(max_iter=1000)),
             ])
-            scores = cross_val_score(pipe, X, y_correct,
-                                     cv=cv_folds, scoring="roc_auc")
+            scores = cross_val_score(pipe, X, y_correct_sub, cv=cv_folds, scoring="roc_auc")
             metric, metric_name = float(np.mean(scores)), "auroc"
 
         results.append({
