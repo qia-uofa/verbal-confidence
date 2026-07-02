@@ -15,6 +15,7 @@ import torch
 from sklearn.linear_model import Ridge, LogisticRegression
 from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 
 from verbal_confidence.config import DotDict, results_dir, build_meta
@@ -48,7 +49,11 @@ def _collect_representations(
             if p is None or layer not in collector.activations:
                 continue
             key = (layer, pos_key)
-            buckets.setdefault(key, []).append(collector.activations[layer][p])
+            arr = collector.activations[layer][p]
+            # float16 can overflow → NaN; replace before stacking
+            if np.isnan(arr).any() or np.isinf(arr).any():
+                arr = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
+            buckets.setdefault(key, []).append(arr)
 
     return {k: np.stack(v) for k, v in buckets.items()}
 
@@ -79,14 +84,24 @@ def run_probing(
 
     results = []
     for (layer, pos_key), X in tqdm(reps.items(), desc="Fitting probes"):
+        # Replace any remaining NaN/Inf (safety net for imputer)
+        X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+
         if task == "regression":
-            pipe = Pipeline([("scaler", StandardScaler()), ("clf", Ridge())])
+            pipe = Pipeline([
+                ("imputer", SimpleImputer(strategy="mean")),
+                ("scaler", StandardScaler()),
+                ("clf", Ridge()),
+            ])
             scores = cross_val_score(pipe, X, y_cls.astype(float),
                                      cv=cv_folds, scoring="r2")
             metric, metric_name = float(np.mean(scores)), "r2"
         else:
-            pipe = Pipeline([("scaler", StandardScaler()),
-                             ("clf", LogisticRegression(max_iter=1000))])
+            pipe = Pipeline([
+                ("imputer", SimpleImputer(strategy="mean")),
+                ("scaler", StandardScaler()),
+                ("clf", LogisticRegression(max_iter=1000)),
+            ])
             scores = cross_val_score(pipe, X, y_correct,
                                      cv=cv_folds, scoring="roc_auc")
             metric, metric_name = float(np.mean(scores)), "auroc"
