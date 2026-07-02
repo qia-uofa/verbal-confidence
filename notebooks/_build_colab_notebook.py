@@ -45,7 +45,7 @@ md("## 1 · Install Dependencies")
 code("""\
 # Run once per Colab session (takes ~2 min on first run)
 %pip install -q transformers>=4.40 accelerate>=0.27 bitsandbytes>=0.43 \\
-    datasets>=2.18 pyyaml>=6.0 scikit-learn>=1.4 matplotlib>=3.8 nbformat
+    datasets>=2.18 pyyaml>=6.0 scikit-learn>=1.4 matplotlib>=3.8 pandas
 print("Installation complete.")
 """)
 
@@ -61,7 +61,9 @@ GITHUB_REPO = "https://github.com/YOUR_USERNAME/verbal-confidence.git"  # ← fi
 
 REPO_ROOT = Path("/content/verbal-confidence")
 if not REPO_ROOT.exists():
-    os.system(f"git clone {GITHUB_REPO} {REPO_ROOT}")
+    rc = os.system(f"git clone {GITHUB_REPO} {REPO_ROOT}")
+    if rc != 0:
+        raise RuntimeError(f"git clone failed (exit {rc}). Check GITHUB_REPO URL and repo visibility.")
 else:
     print("Repo already present, skipping clone.")
 
@@ -71,7 +73,13 @@ else:
 #     z.extractall("/content")
 
 # Install as editable package
-os.system(f"pip install -q -e {REPO_ROOT}")
+import subprocess
+result = subprocess.run(
+    [sys.executable, "-m", "pip", "install", "-q", "-e", str(REPO_ROOT)],
+    capture_output=True, text=True,
+)
+if result.returncode != 0:
+    raise RuntimeError(f"pip install failed:\\n{result.stderr}")
 print("Package installed.")
 """)
 
@@ -84,9 +92,9 @@ USE_DRIVE = False   # ← set True to persist results to Google Drive
 if USE_DRIVE:
     from google.colab import drive
     drive.mount("/content/drive")
-    PERMANENT_ROOT = "/content/drive/MyDrive/verbal-confidence"
+    PERMANENT_ROOT = "/content/drive/MyDrive"
 else:
-    PERMANENT_ROOT = "/content/results"
+    PERMANENT_ROOT = "/content"
 
 EPHEMERAL_ROOT = "/content"
 
@@ -263,7 +271,6 @@ code("""\
 # Calibration curve
 numeric = np.linspace(0, 1, n_cls)
 bins = np.linspace(0, 1, 6)
-bin_labels, bin_acc = [], []
 conf_vals = []
 acc_vals  = []
 for r in p1:
@@ -275,7 +282,7 @@ for r in p1:
 conf_arr = np.array(conf_vals)
 acc_arr  = np.array(acc_vals)
 bin_confs, bin_accs = [], []
-for lo, hi in zip(bins[:-1], bins[1:]):
+for lo, hi in zip(bins[:-1], bins[1:]):  # noqa: B007
     mask = (conf_arr >= lo) & (conf_arr < hi)
     if mask.sum() > 0:
         bin_confs.append(conf_arr[mask].mean())
@@ -309,21 +316,24 @@ print(f"Steering: {len(s_res)} records")
 code("""\
 import pandas as pd
 
-df = pd.DataFrame(s_res)
-layers = sorted(df["layer"].unique())
-alphas = sorted(df["alpha"].unique())
-pivot = df.groupby(["layer", "alpha"])["delta_conf"].mean().unstack("alpha")
+if not s_res:
+    print("Steering: no results (model did not predict extreme confidence classes — try more questions)")
+else:
+    df = pd.DataFrame(s_res)
+    layers = sorted(df["layer"].unique())
+    alphas = sorted(df["alpha"].unique())
+    pivot = df.groupby(["layer", "alpha"])["delta_class"].mean().unstack("alpha")
 
-fig, ax = plt.subplots(figsize=(8, 4))
-im = ax.imshow(pivot.values, aspect="auto", cmap="RdBu_r", vmin=-1, vmax=1)
-ax.set_xticks(range(len(alphas)));   ax.set_xticklabels(alphas)
-ax.set_yticks(range(len(layers)));  ax.set_yticklabels(layers)
-ax.set_xlabel("Alpha"); ax.set_ylabel("Layer")
-ax.set_title("Steering — Δ Confidence (mean)")
-plt.colorbar(im, ax=ax)
-plt.tight_layout()
-plt.savefig(results_dir / "steering_heatmap.png", dpi=150)
-plt.show()
+    fig, ax = plt.subplots(figsize=(8, 4))
+    im = ax.imshow(pivot.values, aspect="auto", cmap="RdBu_r", vmin=-3, vmax=3)
+    ax.set_xticks(range(len(alphas)));   ax.set_xticklabels(alphas)
+    ax.set_yticks(range(len(layers)));  ax.set_yticklabels(layers)
+    ax.set_xlabel("Alpha"); ax.set_ylabel("Layer")
+    ax.set_title("Steering — Δ Confidence Class (mean)")
+    plt.colorbar(im, ax=ax)
+    plt.tight_layout()
+    plt.savefig(results_dir / "steering_heatmap.png", dpi=150)
+    plt.show()
 """)
 
 
@@ -340,19 +350,22 @@ print(f"Patching: {len(pa_res)} records")
 """)
 
 code("""\
-df = pd.DataFrame(pa_res)
-effect = df.groupby(["layer", "position"])["delta_conf"].mean().reset_index()
+if not pa_res:
+    print("Patching: no results")
+else:
+    df = pd.DataFrame(pa_res)
+    effect = df.groupby(["layer", "position"])["delta_class"].mean().reset_index()
 
-fig, ax = plt.subplots(figsize=(6, 4))
-for pos, grp in effect.groupby("position"):
-    ax.plot(grp["layer"], grp["delta_conf"], marker="o", label=pos)
-ax.axhline(0, color="k", lw=0.8, ls="--")
-ax.set_xlabel("Layer"); ax.set_ylabel("Δ Confidence")
-ax.set_title("Activation Patching")
-ax.legend()
-plt.tight_layout()
-plt.savefig(results_dir / "patching.png", dpi=150)
-plt.show()
+    fig, ax = plt.subplots(figsize=(6, 4))
+    for pos, grp in effect.groupby("position"):
+        ax.plot(grp["layer"], grp["delta_class"], marker="o", label=pos)
+    ax.axhline(0, color="k", lw=0.8, ls="--")
+    ax.set_xlabel("Layer"); ax.set_ylabel("Δ Class")
+    ax.set_title("Activation Patching")
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(results_dir / "patching.png", dpi=150)
+    plt.show()
 """)
 
 
@@ -369,19 +382,22 @@ print(f"Noising: {len(n_res)} records")
 """)
 
 code("""\
-df = pd.DataFrame(n_res)
-effect = df.groupby(["layer", "position"])["delta_conf"].mean().reset_index()
+if not n_res:
+    print("Noising: no results")
+else:
+    df = pd.DataFrame(n_res)
+    effect = df.groupby(["layer", "position"])["delta_class"].mean().reset_index()
 
-fig, ax = plt.subplots(figsize=(6, 4))
-for pos, grp in effect.groupby("position"):
-    ax.plot(grp["layer"], grp["delta_conf"], marker="s", label=pos)
-ax.axhline(0, color="k", lw=0.8, ls="--")
-ax.set_xlabel("Layer"); ax.set_ylabel("Δ Confidence")
-ax.set_title("Activation Noising (Mean Ablation)")
-ax.legend()
-plt.tight_layout()
-plt.savefig(results_dir / "noising.png", dpi=150)
-plt.show()
+    fig, ax = plt.subplots(figsize=(6, 4))
+    for pos, grp in effect.groupby("position"):
+        ax.plot(grp["layer"], grp["delta_class"], marker="s", label=pos)
+    ax.axhline(0, color="k", lw=0.8, ls="--")
+    ax.set_xlabel("Layer"); ax.set_ylabel("Δ Class")
+    ax.set_title("Activation Noising (Mean Ablation)")
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(results_dir / "noising.png", dpi=150)
+    plt.show()
 """)
 
 
@@ -398,19 +414,24 @@ print(f"Swap: {len(sw_res)} records")
 """)
 
 code("""\
-df = pd.DataFrame(sw_res)
-effect = df.groupby(["layer", "position"])["delta_conf"].mean().reset_index()
+if not sw_res:
+    print("Swap: no results")
+else:
+    df = pd.DataFrame(sw_res)
+    # a_toward_b / b_toward_a: signed shift in predicted class toward the other item's class
+    df["swap_effect"] = (df["a_toward_b"] + df["b_toward_a"]) / 2
+    effect = df.groupby(["layer", "position"])["swap_effect"].mean().reset_index()
 
-fig, ax = plt.subplots(figsize=(6, 4))
-for pos, grp in effect.groupby("position"):
-    ax.plot(grp["layer"], grp["delta_conf"], marker="^", label=pos)
-ax.axhline(0, color="k", lw=0.8, ls="--")
-ax.set_xlabel("Layer"); ax.set_ylabel("Δ Confidence swap")
-ax.set_title("Activation Swap")
-ax.legend()
-plt.tight_layout()
-plt.savefig(results_dir / "swap.png", dpi=150)
-plt.show()
+    fig, ax = plt.subplots(figsize=(6, 4))
+    for pos, grp in effect.groupby("position"):
+        ax.plot(grp["layer"], grp["swap_effect"], marker="^", label=pos)
+    ax.axhline(0, color="k", lw=0.8, ls="--")
+    ax.set_xlabel("Layer"); ax.set_ylabel("Swap effect (mean class shift)")
+    ax.set_title("Activation Swap")
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(results_dir / "swap.png", dpi=150)
+    plt.show()
 """)
 
 
@@ -450,18 +471,28 @@ vp_res, _ = load(cfg.variance_partitioning.output_file)
 if vp_res is None:
     if VISUALIZE_ONLY: raise RuntimeError("No vp.json found.")
     vp_res = run_variance_partitioning(cfg, model, tokenizer, p1)
-print(f"Variance Partitioning: {len(vp_res)} records")
+# vp_res is a flat dict: {"r2_question": 0.1, "r2_unique_question": 0.05, ...}
+print(f"Variance Partitioning: {len(vp_res)} metrics")
 """)
 
 code("""\
-df = pd.DataFrame(vp_res)
-baselines = df["baseline"].unique()
-means = df.groupby("baseline")["r2"].mean()
+# Convert flat dict to long-format rows for plotting
+total_rows  = [{"baseline": k[len("r2_"):],        "r2": v, "type": "total"}
+               for k, v in vp_res.items()
+               if k.startswith("r2_") and not k.startswith("r2_unique_")]
+unique_rows = [{"baseline": k[len("r2_unique_"):], "r2": v, "type": "unique"}
+               for k, v in vp_res.items() if k.startswith("r2_unique_")]
+df = pd.DataFrame(total_rows + unique_rows)
 
-fig, ax = plt.subplots(figsize=(6, 4))
-ax.bar(means.index, means.values, color="#2196F3", alpha=0.8)
+pivot = df.pivot(index="baseline", columns="type", values="r2").fillna(0)
+x = range(len(pivot))
+w = 0.35
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.bar([i - w/2 for i in x], pivot.get("total",  0), w, label="Total R²",  color="#2196F3", alpha=0.8)
+ax.bar([i + w/2 for i in x], pivot.get("unique", 0), w, label="Unique R²", color="#FF9800", alpha=0.8)
+ax.set_xticks(list(x)); ax.set_xticklabels(pivot.index, rotation=25, ha="right")
 ax.set_ylabel("R²"); ax.set_title("Variance Partitioning")
-ax.tick_params(axis="x", rotation=20)
+ax.legend()
 plt.tight_layout()
 plt.savefig(results_dir / "variance_partitioning.png", dpi=150)
 plt.show()
@@ -481,19 +512,22 @@ print(f"Attention Blocking: {len(ab_res)} records")
 """)
 
 code("""\
-df = pd.DataFrame(ab_res)
-effect = df.groupby(["pattern", "layer"])["delta_conf"].mean().reset_index()
+if not ab_res:
+    print("Attention blocking: no results")
+else:
+    df = pd.DataFrame(ab_res)
+    # Results have block_pattern and delta_class; no layer column
+    effect = df.groupby("block_pattern")["delta_class"].mean().reset_index()
 
-fig, ax = plt.subplots(figsize=(8, 4))
-for pat, grp in effect.groupby("pattern"):
-    ax.plot(grp["layer"], grp["delta_conf"], marker="o", label=pat)
-ax.axhline(0, color="k", lw=0.8, ls="--")
-ax.set_xlabel("Layer"); ax.set_ylabel("Δ Confidence")
-ax.set_title("Attention Blocking")
-ax.legend()
-plt.tight_layout()
-plt.savefig(results_dir / "attention_blocking.png", dpi=150)
-plt.show()
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.bar(effect["block_pattern"], effect["delta_class"], color="#607D8B", alpha=0.85)
+    ax.axhline(0, color="k", lw=0.8, ls="--")
+    ax.set_xlabel("Block Pattern"); ax.set_ylabel("Δ Class (mean)")
+    ax.set_title("Attention Blocking")
+    ax.tick_params(axis="x", rotation=15)
+    plt.tight_layout()
+    plt.savefig(results_dir / "attention_blocking.png", dpi=150)
+    plt.show()
 """)
 
 

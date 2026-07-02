@@ -8,7 +8,7 @@
 
 paths:
   ephemeral_root: /content
-  permanent_root: /content/drive/MyDrive/verbal-confidence  # change if Drive not mounted
+  # permanent_root comes from PERMANENT_ROOT env var (set in notebook cell 3)
 
 # Qwen2.5-1.5B-Instruct: ~3 GB, no gating, fits T4 in float16
 active_model: small
