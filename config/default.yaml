@@ -77,7 +77,16 @@ models:
     load_in_4bit: false
     load_in_8bit: false
 
-# Active model key (primary | qwen | magistral)
+  # Small model for Colab / CPU-only runs (~3 GB, no gating)
+  small:
+    name: Qwen/Qwen2.5-1.5B-Instruct
+    dtype: float16
+    attn_implementation: eager
+    max_length: 512
+    load_in_4bit: false
+    load_in_8bit: false
+
+# Active model key (primary | qwen | magistral | small)
 active_model: primary
 
 

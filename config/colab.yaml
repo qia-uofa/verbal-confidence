@@ -1,0 +1,42 @@
+# =============================================================================
+# Colab override config
+# Loaded on top of default.yaml when running in Google Colab.
+#
+# Usage:
+#   cfg = load_config("config/colab.yaml")
+# =============================================================================
+
+paths:
+  ephemeral_root: /content
+  permanent_root: /content/drive/MyDrive/verbal-confidence  # change if Drive not mounted
+
+# Qwen2.5-1.5B-Instruct: ~3 GB, no gating, fits T4 in float16
+active_model: small
+
+# Fewer questions for a quick Colab run
+n_questions: 50
+
+# Use fewer layers — Qwen2.5-1.5B has 28 layers
+steering:
+  output_file: steering.json
+  layers: [5, 10, 20]
+  positions: [panl, cc]
+  alphas: [-2.0, -1.0, -0.5, 0.5, 1.0, 2.0]
+
+patching:
+  output_file: patching.json
+  layers: [5, 10, 20]
+  positions: [panl, cc, ac]
+
+noising:
+  output_file: noising.json
+  layers: [5, 10, 20]
+  positions: [panl, cc, ac]
+  n_mean_samples: 50
+
+swap:
+  output_file: swap.json
+  layers: [5, 10, 20]
+  positions: [panl, cc]
+  pair_strategy: random
+  n_pairs: 50
