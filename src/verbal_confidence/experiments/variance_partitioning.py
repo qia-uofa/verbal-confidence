@@ -14,6 +14,7 @@ import torch
 
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 
 from verbal_confidence.config import DotDict, results_dir, build_meta
@@ -28,7 +29,12 @@ log = get_logger(__name__)
 def _fit_r2(X: np.ndarray, y: np.ndarray, n_folds: int = 5) -> float:
     """Cross-validated R² of a Ridge regression pipeline."""
     from sklearn.model_selection import cross_val_score
-    pipe = Pipeline([("sc", StandardScaler()), ("r", Ridge())])
+    X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+    pipe = Pipeline([
+        ("imputer", SimpleImputer(strategy="mean")),
+        ("sc", StandardScaler()),
+        ("r", Ridge()),
+    ])
     scores = cross_val_score(pipe, X, y, cv=n_folds, scoring="r2")
     return float(np.mean(scores))
 
@@ -81,26 +87,29 @@ def run_variance_partitioning(
         with ActCollector(model, layers=[mid_layer]) as c:
             with torch.no_grad():
                 model(**in_q)
-        X_q.append(c.activations[mid_layer][-1] if mid_layer in c.activations else np.zeros(model.config.hidden_size))
+        def _act(acts, idx):
+            a = acts[mid_layer][idx] if mid_layer in acts else np.zeros(model.config.hidden_size)
+            return np.nan_to_num(a, nan=0.0, posinf=0.0, neginf=0.0)
+
+        X_q.append(_act(c.activations, -1))
 
         # Answer repr
         with ActCollector(model, layers=[mid_layer]) as c:
             with torch.no_grad():
                 model(**in_a)
-        X_a.append(c.activations[mid_layer][-1] if mid_layer in c.activations else np.zeros(model.config.hidden_size))
+        X_a.append(_act(c.activations, -1))
 
         # Q+A repr at key positions
         with ActCollector(model, layers=[mid_layer]) as c:
             with torch.no_grad():
                 model(**in_qa)
-        X_qa.append(c.activations[mid_layer][-1] if mid_layer in c.activations else np.zeros(model.config.hidden_size))
+        X_qa.append(_act(c.activations, -1))
 
         for pos_key in positions:
             p = pos_map.get(pos_key)
-            if p is not None and mid_layer in c.activations:
-                layer_reps[pos_key].append(c.activations[mid_layer][p])
-            else:
-                layer_reps[pos_key].append(np.zeros(model.config.hidden_size))
+            layer_reps[pos_key].append(
+                _act(c.activations, p) if p is not None else np.zeros(model.config.hidden_size)
+            )
 
     y = np.array(y_log)
     X_q  = np.stack(X_q)
