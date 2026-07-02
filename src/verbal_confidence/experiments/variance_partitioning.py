@@ -70,9 +70,11 @@ def run_variance_partitioning(
     mid_layer = n_layers // 2
 
     for rec in tqdm(phase1_results, desc="VP collection"):
-        # Log-prob of predicted class
-        probs = np.array(rec["probs_cls"])
-        y_log.append(float(np.log(probs[rec["pred_class"]] + 1e-8)))
+        # Log-prob of predicted class (clamp NaN/Inf from float16 overflow)
+        probs = np.nan_to_num(np.array(rec["probs_cls"], dtype=float),
+                              nan=0.0, posinf=1.0, neginf=0.0)
+        p = float(np.clip(probs[rec["pred_class"]], 1e-8, 1.0))
+        y_log.append(float(np.log(p)))
 
         prompt_full = rec["prompt"]
         prompt_q    = phase0_prompt(rec["question"])
@@ -111,7 +113,7 @@ def run_variance_partitioning(
                 _act(c.activations, p) if p is not None else np.zeros(model.config.hidden_size)
             )
 
-    y = np.array(y_log)
+    y = np.nan_to_num(np.array(y_log), nan=np.nanmean(y_log) if any(not np.isnan(v) for v in y_log) else 0.0)
     X_q  = np.stack(X_q)
     X_a  = np.stack(X_a)
     X_qa = np.stack(X_qa)
